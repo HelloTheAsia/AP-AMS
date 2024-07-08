@@ -565,14 +565,12 @@ void bambuCallback(char* topic, byte* payload, unsigned int length) {
             delay(500);
             statePublish("发送新的温度!");
 
-            StaticJsonDocument<512> doc;
+            JsonDocument doc;
             // 创建第一个嵌套对象
-            JsonObject obj1 = doc.createNestedObject();
-            obj1["command"] = "gcode_line";
-            obj1["sequence_id"] = "1";
-            obj1["param"] = "M109 S" + String(filamentTemp);
-            JsonObject json = doc.createNestedObject();
-            json["print"] = obj1;
+            JsonObject json = doc["print"].to<JsonObject>();;
+            json["command"] = "gcode_line";
+            json["sequence_id"] = "1";
+            json["param"] = "M109 S" + String(filamentTemp);
             json["user_id"] = "1";
             char buffer[512];
             serializeJson(doc, buffer);
@@ -771,16 +769,16 @@ void haTimerCallback() {
 
 JsonArray initText(String name,String id,String detail,JsonArray array){
     String topic = "homeassistant/text/ams"+id+detail+"/config";
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     // 填充JSON文档
     doc["name"] = name;
     doc["command_topic"] = "AMS/" + filamentID;
     doc["state_topic"] = "AMS/" + id + "/" + detail;
-    JsonObject command_template = doc.createNestedObject("command_template");
+    JsonObject command_template = doc["command_template"].to<JsonObject>();
     command_template["command"] = detail;
     command_template["value"] = "{{ value }}";
     doc["unique_id"] = "amstext" + id + name;
-    JsonObject device = doc.createNestedObject("device");
+    JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = "APAMS" + id;
     device["name"] = "AP-AMS-" + id + "通道";
     device["manufacturer"] = "AP-AMS";
@@ -797,51 +795,78 @@ JsonArray initText(String name,String id,String detail,JsonArray array){
 
 JsonArray initSensor(String name,String id,String detail,JsonArray array){
     String topic = "homeassistant/sensor/ams"+id+detail+"/config";
-    String json = ("{\"name\":\""+name+"\",\"state_topic\":\"AMS/"+id+"/"+detail+"\",\"unique_id\": \"ams"
-    +"sensor"+id+name+"\", \"device\":{\"identifiers\":\"APAMS"+id+"\",\"name\":\"AP-AMS-"+id
-    +"通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\""+sw_version+"\"}}");
+    JsonDocument doc;
+    // 填充JSON文档
+    doc["name"] = name;
+    doc["state_topic"] = "AMS/" + id + "/" + detail;
+    doc["unique_id"] = "amssensor" + id + name;
+    JsonObject device = doc["device"].to<JsonObject>();
+    device["identifiers"] = "APAMS" + id;
+    device["name"] = "AP-AMS-" + id + "通道";
+    device["manufacturer"] = "AP-AMS";
+    device["hw_version"] = sw_version;
+    char buffer[1024];
+    // 序列化JSON文档到字符串缓冲区
+    serializeJson(doc, buffer);
     array.add(topic);
-    haClient.publish(topic.c_str(),json.c_str());
+    haClient.publish(topic.c_str(),buffer);
     return array;
 }
 
-JsonArray initSelect(String name,String id,String detail,String options,JsonArray array){
+JsonArray initSelect(String name,String id,String detail,String options[],JsonArray array){
     String topic = "homeassistant/select/ams"+id+detail+"/config";
-    String json = ("{\"name\":\"" +name +"\",\"command_topic\":\"AMS/" +filamentID +
-    "\",\"state_topic\":\"AMS/" +id +"/" +detail +"\",\"command_template\":\"{\\\"command\\\":\\\"" +
-    detail +"\\\",\\\"value\\\":\\\"{{  value  }}\\\"}\",\"options\":["+options+"],\"unique_id\": \"ams"+"select"
-    +id+name+"\", \"device\":{\"identifiers\":\"APAMS"+id+"\",\"name\":\"AP-AMS-"+id
-    +"通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\""+sw_version+"\"}}");
+    JsonDocument doc;
+    // 填充JSON文档
+    doc["name"] = name;
+    doc["command_topic"] = "AMS/" + filamentID;
+    doc["state_topic"] = "AMS/" + id + "/" + detail;
+    JsonObject command_template = doc["command_template"].to<JsonObject>();
+    command_template["command"] = detail;
+    command_template["value"] = "{{ value }}";
+    JsonArray arr = doc["options"].to<JsonArray>();
+    for (int i = 0; i < options->length(); i++) {
+        arr[i] = options[i];
+    }
+    doc["unique_id"] = "amsselect" + id + name;
+    JsonObject device = doc["device"].to<JsonObject>();
+    device["identifiers"] = "APAMS" + id;
+    device["name"] = "AP-AMS-" + id + "通道";
+    device["manufacturer"] = "AP-AMS";
+    device["hw_version"] = sw_version;
+    // 创建一个字符串缓冲区
+    char buffer[1024];
+    // 序列化JSON文档到字符串缓冲区
+    serializeJson(doc, buffer);
     array.add(topic);
-    haClient.publish(topic.c_str(),json.c_str());
+    haClient.publish(topic.c_str(),buffer);
     return array;
 }
 
 JsonArray initLight(String name,String id,String detail,JsonArray array){
     String topic = "homeassistant/light/ams"+id+detail+"/config";
-    StaticJsonDocument<1024> doc;
+    JsonDocument doc;
     // 填充JSON文档
     doc["name"] = name;
     doc["state_topic"] = "AMS/" + id + "/" + detail + "/swi";
     doc["command_topic"] = "AMS/" + id;
     doc["brightness_state_topic"] = "AMS/" + id + "/" + detail + "/bri";
     doc["brightness_command_topic"] = "AMS/" + id;
-    JsonObject brightness_command_template = doc.createNestedObject("brightness_command_template");
+    JsonObject brightness_command_template = doc["brightness_command_template"].to<JsonObject>();
     brightness_command_template["command"] = detail + "bri";
     brightness_command_template["value"] = "{{ value }}";
     doc["rgb_state_topic"] = "AMS/" + id + "/" + detail + "/rgb";
     doc["rgb_command_topic"] = "AMS/" + id;
-    JsonObject rgb_command_template = doc.createNestedObject("rgb_command_template");
+    JsonObject rgb_command_template = doc["rgb_command_template"].to<JsonObject>();
     rgb_command_template["command"] = detail + "rgb";
     rgb_command_template["value"] = "{{ value }}";
     doc["unique_id"] = "amslight" + id + detail;
-    JsonObject payload_on = doc.createNestedObject("payload_on");
+    JsonObject payload_on = doc["payload_on"].to<JsonObject>();
     payload_on["command"] = detail + "swi";
     payload_on["value"] = "ON";
-    JsonObject payload_off = doc.createNestedObject("payload_off");
+    JsonObject payload_off = doc["payload_off"].to<JsonObject>();
     payload_off["command"] = detail + "swi";
     payload_off["value"] = "OFF";
-    JsonObject device = doc.createNestedObject("device");
+    JsonObject device = doc["device"].to<JsonObject>();
     device["identifiers"] = "APAMS" + id;
     device["name"] = "AP-AMS-" + id + "通道";
     device["manufacturer"] = "AP-AMS";
@@ -1102,8 +1127,10 @@ void setup() {
     discoverList = initText("回抽延时",filamentID,"backTime",discoverList);
     discoverList = initText("耗材温度",filamentID,"filamentTemp",discoverList);
     discoverList = initText("耗材类型",filamentID,"filamentType",discoverList);
-    discoverList = initSelect("电机状态",filamentID,"mcState","\"前进\",\"后退\",\"停止\"",discoverList);
-    discoverList = initSelect("舵机状态",filamentID,"svState","\"推\",\"拉\",\"自定义角度\"",discoverList);
+    String em_options[] = {"前进", "后退", "停止"};
+    discoverList = initSelect("电机状态",filamentID,"mcState",em_options,discoverList);
+    String se_options[] = {"推","拉","自定义角度"};
+    discoverList = initSelect("舵机状态",filamentID,"svState",se_options,discoverList);
     discoverList = initSensor("状态",filamentID,"state",discoverList);
     discoverList = initSensor("本机通道",filamentID,"nowTun",discoverList);
     discoverList = initSensor("下一通道",filamentID,"nextTun",discoverList);
@@ -1116,7 +1143,7 @@ void setup() {
     serializeJsonPretty(haData,Serial);
     Serial.println("");
 
-    haClient.publish(("AMS/"+filamentID+"/filaLig/swi").c_str(),"{\"command\":\"filaLigswi\",\"value\":\"ON\"}");
+    haClient.publish(("AMS/"+filamentID+"/filaLig/swi").c_str(),R"({"command":"filaLigswi","value":"ON"})");
     haClient.publish(("AMS/"+filamentID+"/filaLig/bri").c_str(),String(ledBrightness).c_str());
     haClient.publish(("AMS/"+filamentID+"/filaLig/rgb").c_str(),((String(ledR)+","+String(ledG)+","+String(ledB))).c_str());
     Serial.println("-=-=-=setup执行完成!=-=-=-");
