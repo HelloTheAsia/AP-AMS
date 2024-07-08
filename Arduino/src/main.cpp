@@ -31,12 +31,12 @@ String ha_mqtt_id = "ams";
 String ha_topic_subscribe;
 String bambu_topic_subscribe;// = "device/" + String(bambu_device_serial) + "/report";
 String bambu_topic_publish;// = "device/" + String(bambu_device_serial) + "/request";
-String bambu_resume = "{\"print\":{\"command\":\"resume\",\"sequence_id\":\"1\"},\"user_id\":\"1\"}"; // 重试|继续打印
-String bambu_unload = "{\"print\":{\"command\":\"ams_change_filament\",\"curr_temp\":220,\"sequence_id\":\"1\",\"tar_temp\":220,\"target\":255},\"user_id\":\"1\"}";
-String bambu_load = "{\"print\":{\"command\":\"ams_change_filament\",\"curr_temp\":220,\"sequence_id\":\"1\",\"tar_temp\":220,\"target\":254},\"user_id\":\"1\"}";
-String bambu_done = "{\"print\":{\"command\":\"ams_control\",\"param\":\"done\",\"sequence_id\":\"1\"},\"user_id\":\"1\"}"; // 完成
-String bambu_clear = "{\"print\":{\"command\": \"clean_print_error\",\"sequence_id\":\"1\"},\"user_id\":\"1\"}";
-String bambu_status = "{\"pushing\": {\"sequence_id\": \"0\", \"command\": \"pushall\"}}";
+String bambu_resume = R"({"print":{"command":"resume","sequence_id":"1"},"user_id":"1"})"; // 重试|继续打印
+String bambu_unload = R"({"print":{"command":"ams_change_filament","curr_temp":220,"sequence_id":"1","tar_temp":220,"target":255},"user_id":"1"})";
+String bambu_load = R"({"print":{"command":"ams_change_filament","curr_temp":220,"sequence_id":"1","tar_temp":220,"target":254},"user_id":"1"})";
+String bambu_done = R"({"print":{"command":"ams_control","param":"done","sequence_id":"1"},"user_id":"1"})"; // 完成
+String bambu_clear = R"({"print":{"command": "clean_print_error","sequence_id":"1"},"user_id":"1"})";
+String bambu_status = R"({"pushing": {"sequence_id": "0", "command": "pushall"}})";
 //String bambu_pause = "{\"print\": {\"command\": \"gcode_line\",\"sequence_id\": \"1\",\"param\": \"M400U1\"},\"user_id\": \"1\"}";
 //String bambu_pause = "{\"print\":{\"command\":\"pause\",\"sequence_id\":\"1\"},\"user_id\":\"1\"}";
 int servoPin = 13;//舵机引脚
@@ -564,9 +564,19 @@ void bambuCallback(char* topic, byte* payload, unsigned int length) {
             ledAll(0,255,0);
             delay(500);
             statePublish("发送新的温度!");
-            bambuClient.publish(bambu_topic_publish.c_str(),
-            ("{\"print\": {\"command\": \"gcode_line\",\"sequence_id\": \"1\",\"param\": \"M109 S"+String(filamentTemp)+"\"},\"user_id\": \"1\"}")
-            .c_str());
+
+            StaticJsonDocument<512> doc;
+            // 创建第一个嵌套对象
+            JsonObject obj1 = doc.createNestedObject();
+            obj1["command"] = "gcode_line";
+            obj1["sequence_id"] = "1";
+            obj1["param"] = "M109 S" + String(filamentTemp);
+            JsonObject json = doc.createNestedObject();
+            json["print"] = obj1;
+            json["user_id"] = "1";
+            char buffer[512];
+            serializeJson(doc, buffer);
+            bambuClient.publish(bambu_topic_publish.c_str(),buffer);
         }
     }
     
@@ -671,10 +681,10 @@ void haCallback(char* topic, byte* payload, unsigned int length) {
         if (String(data["command"]).indexOf("swi") != -1){
             if (data["value"] == "ON"){
                 leds.setBrightness(ledBrightness);
-                haClient.publish(("AMS/"+filamentID+"/filaLig/swi").c_str(),"{\"command\":\"filaLigswi\",\"value\":\"ON\"}");
+                haClient.publish(("AMS/"+filamentID+"/filaLig/swi").c_str(),R"({"command":"filaLigswi","value":"ON"})");
             }else if (data["value"] == "OFF"){
                 leds.setBrightness(0);
-                haClient.publish(("AMS/"+filamentID+"/filaLig/swi").c_str(),"{\"command\":\"filaLigswi\",\"value\":\"OFF\"}");
+                haClient.publish(("AMS/"+filamentID+"/filaLig/swi").c_str(),R"({"command":"filaLigswi","value":"OFF"})");
             }
         }else if (String(data["command"]).indexOf("bri") != -1){
             ledBrightness = data["value"].as<String>().toInt();
@@ -761,13 +771,27 @@ void haTimerCallback() {
 
 JsonArray initText(String name,String id,String detail,JsonArray array){
     String topic = "homeassistant/text/ams"+id+detail+"/config";
-    String json = ("{\"name\":\"" +name +"\",\"command_topic\":\"AMS/" +filamentID +"\",\"state_topic\":\"AMS/" +
-    id +"/" +detail +"\",\"command_template\":\"{\\\"command\\\":\\\"" +detail +
-    "\\\",\\\"value\\\":\\\"{{  value  }}\\\"}\",\"unique_id\": \"ams"+"text"+id+name+"\", \"device\":{\"identifiers\":\"APAMS"
-    +id+"\",\"name\":\"AP-AMS-"+id+"通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\""+sw_version+"\"}}");
-    //Serial.println(json);
+    StaticJsonDocument<512> doc;
+    // 填充JSON文档
+    doc["name"] = name;
+    doc["command_topic"] = "AMS/" + filamentID;
+    doc["state_topic"] = "AMS/" + id + "/" + detail;
+    JsonObject command_template = doc.createNestedObject("command_template");
+    command_template["command"] = detail;
+    command_template["value"] = "{{ value }}";
+    doc["unique_id"] = "amstext" + id + name;
+    JsonObject device = doc.createNestedObject("device");
+    device["identifiers"] = "APAMS" + id;
+    device["name"] = "AP-AMS-" + id + "通道";
+    device["manufacturer"] = "AP-AMS";
+    device["hw_version"] = sw_version;
+    // 创建一个字符串缓冲区
+    char buffer[512];
+    // 序列化JSON文档到字符串缓冲区
+    serializeJson(doc, buffer);
+
     array.add(topic);
-    haClient.publish(topic.c_str(),json.c_str());
+    haClient.publish(topic.c_str(),buffer);
     return array;
 }
 
@@ -795,6 +819,38 @@ JsonArray initSelect(String name,String id,String detail,String options,JsonArra
 
 JsonArray initLight(String name,String id,String detail,JsonArray array){
     String topic = "homeassistant/light/ams"+id+detail+"/config";
+    StaticJsonDocument<1024> doc;
+    // 填充JSON文档
+    doc["name"] = name;
+    doc["state_topic"] = "AMS/" + id + "/" + detail + "/swi";
+    doc["command_topic"] = "AMS/" + id;
+    doc["brightness_state_topic"] = "AMS/" + id + "/" + detail + "/bri";
+    doc["brightness_command_topic"] = "AMS/" + id;
+    JsonObject brightness_command_template = doc.createNestedObject("brightness_command_template");
+    brightness_command_template["command"] = detail + "bri";
+    brightness_command_template["value"] = "{{ value }}";
+    doc["rgb_state_topic"] = "AMS/" + id + "/" + detail + "/rgb";
+    doc["rgb_command_topic"] = "AMS/" + id;
+    JsonObject rgb_command_template = doc.createNestedObject("rgb_command_template");
+    rgb_command_template["command"] = detail + "rgb";
+    rgb_command_template["value"] = "{{ value }}";
+    doc["unique_id"] = "amslight" + id + detail;
+    JsonObject payload_on = doc.createNestedObject("payload_on");
+    payload_on["command"] = detail + "swi";
+    payload_on["value"] = "ON";
+    JsonObject payload_off = doc.createNestedObject("payload_off");
+    payload_off["command"] = detail + "swi";
+    payload_off["value"] = "OFF";
+    JsonObject device = doc.createNestedObject("device");
+    device["identifiers"] = "APAMS" + id;
+    device["name"] = "AP-AMS-" + id + "通道";
+    device["manufacturer"] = "AP-AMS";
+    device["hw_version"] = sw_version;
+    // 创建一个字符串缓冲区
+    char buffer[1024];
+    // 序列化JSON文档到字符串缓冲区
+    serializeJson(doc, buffer);
+
     String json = "{\"name\":\"" + name + "\""
     + ",\"state_topic\":\"AMS/" + id + "/" + detail + "/swi\",\"command_topic\":\"AMS/" + id + "\","
     + "\"brightness_state_topic\":\"AMS/" + id + "/" + detail + "/bri\",\"brightness_command_topic\":\"AMS/" + id + "\","
@@ -806,7 +862,7 @@ JsonArray initLight(String name,String id,String detail,JsonArray array){
     + "\"payload_off\":\"{\\\"command\\\":\\\"" + detail + "swi\\\",\\\"value\\\":\\\"OFF\\\"}\""
     + ",\"device\":{\"identifiers\":\"APAMS" + id + "\",\"name\":\"AP-AMS-" + id + "通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\"" + sw_version + "\"}}";
     array.add(topic);
-    haClient.publish(topic.c_str(),json.c_str());
+    haClient.publish(topic.c_str(),buffer);
     return array;
 }
 
