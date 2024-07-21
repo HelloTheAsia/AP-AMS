@@ -13,9 +13,6 @@
 //-=-=-=-=-=-=-=-=↓用户配置↓-=-=-=-=-=-=-=-=-=-=
 String wifiName;//
 String wifiKey;//
-String bambu_mqtt_broker;//
-String bambu_mqtt_password;//
-String bambu_device_serial;//
 String filamentID;//
 String ha_mqtt_broker;
 String ha_mqtt_user;
@@ -24,21 +21,9 @@ String ha_mqtt_password;
 
 //-=-=-=-=-=-↓系统配置↓-=-=-=-=-=-=-=-=-=
 bool debug = false;
-String sw_version = "v2.3";
-String bambu_mqtt_user = "bblp";
-String bambu_mqtt_id = "ams";
+String sw_version = "v1.0";
 String ha_mqtt_id = "ams";
 String ha_topic_subscribe;
-String bambu_topic_subscribe;// = "device/" + String(bambu_device_serial) + "/report";
-String bambu_topic_publish;// = "device/" + String(bambu_device_serial) + "/request";
-String bambu_resume = R"({"print":{"command":"resume","sequence_id":"1"},"user_id":"1"})"; // 重试|继续打印
-String bambu_unload = R"({"print":{"command":"ams_change_filament","curr_temp":220,"sequence_id":"1","tar_temp":220,"target":255},"user_id":"1"})";
-String bambu_load = R"({"print":{"command":"ams_change_filament","curr_temp":220,"sequence_id":"1","tar_temp":220,"target":254},"user_id":"1"})";
-String bambu_done = R"({"print":{"command":"ams_control","param":"done","sequence_id":"1"},"user_id":"1"})"; // 完成
-String bambu_clear = R"({"print":{"command": "clean_print_error","sequence_id":"1"},"user_id":"1"})";
-String bambu_status = R"({"pushing": {"sequence_id": "0", "command": "pushall"}})";
-//String bambu_pause = "{\"print\": {\"command\": \"gcode_line\",\"sequence_id\": \"1\",\"param\": \"M400U1\"},\"user_id\": \"1\"}";
-//String bambu_pause = "{\"print\":{\"command\":\"pause\",\"sequence_id\":\"1\"},\"user_id\":\"1\"}";
 int servoPin = 13;//舵机引脚
 int motorPin1 = 4;//电机一号引脚
 int motorPin2 = 5;//电机二号引脚
@@ -169,38 +154,38 @@ void writeCData(JsonDocument Cdata){
 
 //定义电机驱动类和舵机控制类
 class Machinery {
-  private:
+private:
     int pin1;
     int pin2;
     bool isStop = true;
     String state = "停止";
-  public:
+public:
     Machinery(int pin1, int pin2) {
-      this->pin1 = pin1;
-      this->pin2 = pin2;
-      pinMode(pin1, OUTPUT);
-      pinMode(pin2, OUTPUT);
+        this->pin1 = pin1;
+        this->pin2 = pin2;
+        pinMode(pin1, OUTPUT);
+        pinMode(pin2, OUTPUT);
     }
 
     void forward() {
-      digitalWrite(pin1, HIGH);
-      digitalWrite(pin2, LOW);
-      isStop = false;
-      state = "前进";
+        digitalWrite(pin1, HIGH);
+        digitalWrite(pin2, LOW);
+        isStop = false;
+        state = "前进";
     }
 
     void backforward() {
-      digitalWrite(pin1, LOW);
-      digitalWrite(pin2, HIGH);
-      isStop = false;
-      state = "后退";
+        digitalWrite(pin1, LOW);
+        digitalWrite(pin2, HIGH);
+        isStop = false;
+        state = "后退";
     }
 
     void stop() {
-      digitalWrite(pin1, HIGH);
-      digitalWrite(pin2, HIGH);
-      isStop = true;
-      state = "停止";
+        digitalWrite(pin1, HIGH);
+        digitalWrite(pin2, HIGH);
+        isStop = true;
+        state = "停止";
     }
 
     bool getStopState() {
@@ -211,34 +196,34 @@ class Machinery {
     }
 };
 class ServoControl {
-    private:
-        int angle = -1;
-        String state = "自定义角度";
-    public:
-        ServoControl(){
-        }
-        void push() {
-            servo.write(0);
-            angle = 0;
-            state = "推";
-        }
-        void pull() {
-            servo.write(180);
-            angle = 180;
-            state = "拉";
-        }
-        void writeAngle(int angle) {
-            servo.write(angle);
-            angle = angle;
-            state = "自定义角度";
-        }
-        int getAngle(){
-            return angle;
-        }
-        String getState(){
-            return state;
-        }
-    };
+private:
+    int angle = -1;
+    String state = "自定义角度";
+public:
+    ServoControl(){
+    }
+    void push() {
+        servo.write(0);
+        angle = 0;
+        state = "推";
+    }
+    void pull() {
+        servo.write(180);
+        angle = 180;
+        state = "拉";
+    }
+    void writeAngle(int angle) {
+        servo.write(angle);
+        angle = angle;
+        state = "自定义角度";
+    }
+    int getAngle(){
+        return angle;
+    }
+    String getState(){
+        return state;
+    }
+};
 //定义电机舵机变量
 ServoControl sv;
 Machinery mc(motorPin1, motorPin2);
@@ -313,7 +298,7 @@ void bambuCallback(char* topic, byte* payload, unsigned int length) {
             statePublish("-=-=-=-=-");}
         bambuLastTime = millis();
     }
-    
+
     /*
     step代表了换色进行的五大主要步骤
     1——收到换色指令，进行规划和分配  红绿蓝
@@ -331,7 +316,7 @@ void bambuCallback(char* topic, byte* payload, unsigned int length) {
             leds.setPixelColor(1,leds.Color(0,255,0));
             leds.setPixelColor(0,leds.Color(0,0,255));
             leds.show();
-            
+
             String nextFilament = String(mcPercent.toInt() - 110 + 1);
             Pdata["nextFilament"] = nextFilament;
             unloadMsg = false;
@@ -367,7 +352,7 @@ void bambuCallback(char* topic, byte* payload, unsigned int length) {
             }
         }else{
             ledAll(ledR,ledG,ledB);
-            }
+        }
     }else if (Pdata["step"] == "2"){
         if (Pdata["subStep"] == "1"){
             statePublish("进入退料状态");
@@ -459,13 +444,13 @@ void bambuCallback(char* topic, byte* payload, unsigned int length) {
                 delay(2000);
                 mc.stop();
                 Pdata["subStep"] = "2";
-                
+
                 leds.setPixelColor(2,leds.Color(255,255,0));
                 leds.setPixelColor(1,leds.Color(255,0,0));
                 leds.show();
             } else if (hwSwitchState == "1") {
                 statePublish("送料成功，等待挤出换料");
-                sv.pull(); 
+                sv.pull();
                 Pdata["subStep"] = "5"; // 更新 subStep
 
                 leds.setPixelColor(2,leds.Color(255,255,0));
@@ -546,7 +531,7 @@ void bambuCallback(char* topic, byte* payload, unsigned int length) {
         }else{
             Serial.print(".");
         }
-        
+
         //跑马灯
         if (completeLed == -1){
             completeLed = 2;
@@ -577,7 +562,7 @@ void bambuCallback(char* topic, byte* payload, unsigned int length) {
             bambuClient.publish(bambu_topic_publish.c_str(),buffer);
         }
     }
-    
+
     writePData(Pdata);
 }
 
@@ -712,8 +697,8 @@ void haCallback(char* topic, byte* payload, unsigned int length) {
         filamentType = data["value"].as<String>();
         CData["filamentType"] = filamentType;
     }
-    
-    
+
+
     writePData(PData);
     writeCData(CData);
     haClient.publish(("AMS/"+filamentID+"/nowTun").c_str(),filamentID.c_str());
@@ -737,11 +722,6 @@ void haCallback(char* topic, byte* payload, unsigned int length) {
 }
 
 //定时任务
-void bambuTimerCallback() {
-    if (debug){Serial.println("bambu定时任务执行！");}
-    bambuClient.publish(bambu_topic_publish.c_str(), bambu_status.c_str());
-}
-//定时任务
 void haTimerCallback() {
     if (debug){Serial.println("ha定时任务执行！");}
     JsonDocument PData = getPData();
@@ -753,16 +733,10 @@ void haTimerCallback() {
     haClient.publish(("AMS/"+filamentID+"/subStep").c_str(),PData["subStep"].as<String>().c_str());
     haClient.publish(("AMS/"+filamentID+"/wifiName").c_str(),wifiName.c_str());
     haClient.publish(("AMS/"+filamentID+"/wifiKey").c_str(),wifiKey.c_str());
-    haClient.publish(("AMS/"+filamentID+"/bambuIPAD").c_str(),bambu_mqtt_broker.c_str());
-    haClient.publish(("AMS/"+filamentID+"/bambuSID").c_str(),bambu_device_serial.c_str());
-    haClient.publish(("AMS/"+filamentID+"/bambuKey").c_str(),bambu_mqtt_password.c_str());
     haClient.publish(("AMS/"+filamentID+"/LedBri").c_str(),String(ledBrightness).c_str());
     haClient.publish(("AMS/"+filamentID+"/mcState").c_str(),mc.getState().c_str());
     haClient.publish(("AMS/"+filamentID+"/svState").c_str(),sv.getState().c_str());
-    haClient.publish(("AMS/"+filamentID+"/backTime").c_str(),String(backTime).c_str());
     haClient.publish(("AMS/"+filamentID+"/filaLig/rgb").c_str(),((String(ledR)+","+String(ledG)+","+String(ledB))).c_str());
-    haClient.publish(("AMS/"+filamentID+"/filamentTemp").c_str(),String(filamentTemp).c_str());
-    haClient.publish(("AMS/"+filamentID+"/filamentType").c_str(),String(filamentType).c_str());
 
     haLastTime = millis();
 }
@@ -877,15 +851,15 @@ JsonArray initLight(String name,String id,String detail,JsonArray array){
     serializeJson(doc, buffer);
 
     String json = "{\"name\":\"" + name + "\""
-    + ",\"state_topic\":\"AMS/" + id + "/" + detail + "/swi\",\"command_topic\":\"AMS/" + id + "\","
-    + "\"brightness_state_topic\":\"AMS/" + id + "/" + detail + "/bri\",\"brightness_command_topic\":\"AMS/" + id + "\","
-    + "\"brightness_command_template\":\"{\\\"command\\\":\\\"" + detail + "bri\\\",\\\"value\\\":\\\"{{ value }}\\\"}\","
-    + "\"rgb_state_topic\":\"AMS/" + id + "/" + detail + "/rgb\",\"rgb_command_topic\":\"AMS/" + id + "\","
-    + "\"rgb_command_template\":\"{\\\"command\\\":\\\"" + detail + "rgb\\\",\\\"value\\\":\\\"{{ value }}\\\"}\","
-    + "\"unique_id\":\"ams" + "light" + id + detail + "\","
-    + "\"payload_on\":\"{\\\"command\\\":\\\"" + detail + "swi\\\",\\\"value\\\":\\\"ON\\\"}\","
-    + "\"payload_off\":\"{\\\"command\\\":\\\"" + detail + "swi\\\",\\\"value\\\":\\\"OFF\\\"}\""
-    + ",\"device\":{\"identifiers\":\"APAMS" + id + "\",\"name\":\"AP-AMS-" + id + "通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\"" + sw_version + "\"}}";
+                  + ",\"state_topic\":\"AMS/" + id + "/" + detail + "/swi\",\"command_topic\":\"AMS/" + id + "\","
+                  + "\"brightness_state_topic\":\"AMS/" + id + "/" + detail + "/bri\",\"brightness_command_topic\":\"AMS/" + id + "\","
+                  + "\"brightness_command_template\":\"{\\\"command\\\":\\\"" + detail + "bri\\\",\\\"value\\\":\\\"{{ value }}\\\"}\","
+                  + "\"rgb_state_topic\":\"AMS/" + id + "/" + detail + "/rgb\",\"rgb_command_topic\":\"AMS/" + id + "\","
+                  + "\"rgb_command_template\":\"{\\\"command\\\":\\\"" + detail + "rgb\\\",\\\"value\\\":\\\"{{ value }}\\\"}\","
+                  + "\"unique_id\":\"ams" + "light" + id + detail + "\","
+                  + "\"payload_on\":\"{\\\"command\\\":\\\"" + detail + "swi\\\",\\\"value\\\":\\\"ON\\\"}\","
+                  + "\"payload_off\":\"{\\\"command\\\":\\\"" + detail + "swi\\\",\\\"value\\\":\\\"OFF\\\"}\""
+                  + ",\"device\":{\"identifiers\":\"APAMS" + id + "\",\"name\":\"AP-AMS-" + id + "通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\"" + sw_version + "\"}}";
     array.add(topic);
     haClient.publish(topic.c_str(),buffer);
     return array;
@@ -913,7 +887,7 @@ void setup() {
 
         delay(500);
         ledAll(255,0,0);
-        
+
         Serial.println("2.请输入wifi密码:");
         while (!(Serial.available() > 0)){
             delay(100);
@@ -921,66 +895,22 @@ void setup() {
         wifiKey = Serial.readString();
         ledAll(0,255,0);
         Serial.println("获取到的数据-> "+wifiKey);
-        
+
         delay(500);
         ledAll(255,0,0);
 
-        Serial.println("3.请输入拓竹打印机的ip地址:");
-        while (!(Serial.available() > 0)){
-            delay(100);
-        }
-        bambu_mqtt_broker = Serial.readString();
-        ledAll(0,255,0);
-        Serial.println("获取到的数据-> "+bambu_mqtt_broker);
-        
-        delay(500);
-        ledAll(255,0,0);
-
-        Serial.println("4.请输入拓竹打印机的访问码:");
-        while (!(Serial.available() > 0)){
-            delay(100);
-        }
-        bambu_mqtt_password = Serial.readString();
-        ledAll(0,255,0);
-        Serial.println("获取到的数据-> "+bambu_mqtt_password);
-        
-        delay(500);
-        ledAll(255,0,0);
-        
-        Serial.println("5.请输入拓竹打印机的序列号:");
-        while (!(Serial.available() > 0)){
-            delay(100);
-        }
-        bambu_device_serial = Serial.readString();
-        ledAll(0,255,0);
-        Serial.println("获取到的数据-> "+bambu_device_serial);
-        
-        delay(500);
-        ledAll(255,0,0);
-    
-        Serial.println("6.请输入本机通道编号:");
-        while (!(Serial.available() > 0)){
-            delay(100);
-        }
-        filamentID = Serial.readString();
-        ledAll(0,255,0);
-        Serial.println("获取到的数据-> "+filamentID);
-        
-        delay(500);
-        ledAll(255,0,0);
-    
-        Serial.println("7.请输入ha服务器地址:");
+        Serial.println("3.请输入mqtt服务器地址:");
         while (!(Serial.available() > 0)){
             delay(100);
         }
         ha_mqtt_broker = Serial.readString();
         ledAll(0,255,0);
         Serial.println("获取到的数据-> "+ha_mqtt_broker);
-        
+
         delay(500);
         ledAll(255,0,0);
-    
-        Serial.println("8.请输入ha账号(无则输入“NONE”):");
+
+        Serial.println("4.请输入mqtt账号(无则输入“NONE”):");
         while (!(Serial.available() > 0)){
             delay(100);
         }
@@ -990,11 +920,11 @@ void setup() {
         }
         ledAll(0,255,0);
         Serial.println("获取到的数据-> "+message);
-        
+
         delay(500);
         ledAll(255,0,0);
-    
-        Serial.println("9.请输入ha密码(无则输入“NONE”):");
+
+        Serial.println("5.请输入mqtt密码(无则输入“NONE”):");
         while (!(Serial.available() > 0)){
             delay(100);
         }
@@ -1008,88 +938,64 @@ void setup() {
         delay(500);
         ledAll(255,0,0);
 
-        Serial.println("10.请输入回抽延时[单位毫秒]:");
+        Serial.println("6.请输入本机通道编号:");
         while (!(Serial.available() > 0)){
             delay(100);
         }
-
-        backTime = Serial.readString().toInt();
+        filamentID = Serial.readString();
         ledAll(0,255,0);
-        Serial.println("获取到的数据-> "+String(backTime));
-        
-        Serial.println("11.请输入本通道耗材温度(后续可更改):");
-        while (!(Serial.available() > 0)){
-            delay(100);
-        }
+        Serial.println("获取到的数据-> "+filamentID);
 
-        filamentTemp = Serial.readString().toInt();
-        ledAll(0,255,0);
-        Serial.println("获取到的数据-> "+String(filamentTemp));
-        
+        delay(500);
+        ledAll(255,0,0);
+
+
         JsonDocument Cdata;
         Cdata["wifiName"] = wifiName;
         Cdata["wifiKey"] = wifiKey;
-        Cdata["bambu_mqtt_broker"] = bambu_mqtt_broker;
-        Cdata["bambu_mqtt_password"] = bambu_mqtt_password;
-        Cdata["bambu_device_serial"] = bambu_device_serial;
-        Cdata["filamentID"] = filamentID;
-        Cdata["ledBrightness"] = 100;
+        Cdata["ledBrightness"] = 1;
         Cdata["ha_mqtt_broker"] = ha_mqtt_broker;
         Cdata["ha_mqtt_user"] = ha_mqtt_user;
         Cdata["ha_mqtt_password"] = ha_mqtt_password;
-        Cdata["backTime"] = backTime;
-        Cdata["filamentTemp"]  = filamentTemp;
-        Cdata["filamentType"] = filamentType;
+        Cdata["filamentID"] = filamentID;
         ledR = 0;
         ledG = 0;
         ledB = 255;
         Cdata["ledR"] = ledR;
         Cdata["ledG"] = ledG;
         Cdata["ledB"] = ledB;
-        ledBrightness = 100;
+        ledBrightness = 1;
         writeCData(Cdata);
     }else{
         JsonDocument Cdata = getCData();
         serializeJsonPretty(Cdata,Serial);
         wifiName = Cdata["wifiName"].as<String>();
         wifiKey = Cdata["wifiKey"].as<String>();
-        bambu_mqtt_broker = Cdata["bambu_mqtt_broker"].as<String>();
-        bambu_mqtt_password = Cdata["bambu_mqtt_password"].as<String>();
-        bambu_device_serial = Cdata["bambu_device_serial"].as<String>();
-        filamentID = Cdata["filamentID"].as<String>();
         ledBrightness = Cdata["ledBrightness"].as<unsigned int>();
         ha_mqtt_broker = Cdata["ha_mqtt_broker"].as<String>();
         ha_mqtt_user = Cdata["ha_mqtt_user"].as<String>();
         ha_mqtt_password = Cdata["ha_mqtt_password"].as<String>();
-        backTime = Cdata["backTime"].as<int>();
-        filamentTemp = Cdata["filamentTemp"].as<int>();
-        filamentType = Cdata["filamentType"].as<String>();
+        filamentID = Cdata["filamentID"].as<String>();
         ledR = Cdata["ledR"];
         ledG = Cdata["ledG"];
         ledB = Cdata["ledB"];
         ledAll(0,255,0);
     }
-    bambu_topic_subscribe = "device/" + String(bambu_device_serial) + "/report";
-    bambu_topic_publish = "device/" + String(bambu_device_serial) + "/request";
-    ha_topic_subscribe = "AMS/"+filamentID;
+    ha_topic_subscribe = "AMS_Switch/"+filamentID;
     leds.setBrightness(ledBrightness);
 
     connectWF(wifiName,wifiKey);
 
     servo.attach(servoPin,500,2500);
-    //servo.write(20);//初始20°方便后续调试
+    servo.write(90);//初始90°归零
 
     pinMode(bufferPin1, INPUT_PULLDOWN_16);
     pinMode(bufferPin2, INPUT_PULLDOWN_16);
 
-    bambuWifiClient.setInsecure();
-    bambuClient.setServer(bambu_mqtt_broker.c_str(), 8883);
-    bambuClient.setCallback(bambuCallback);
-    bambuClient.setBufferSize(4096);
     haClient.setServer(ha_mqtt_broker.c_str(),1883);
     haClient.setCallback(haCallback);
     haClient.setBufferSize(4096);
-    
+
     if (!LittleFS.exists("/data.json")) {
         JsonDocument Pdata;
         Pdata["lastFilament"] = "1";
@@ -1113,28 +1019,14 @@ void setup() {
     JsonDocument haData;
     JsonArray discoverList = haData["discovery_topic"].to<JsonArray>();
 
-    discoverList = initText("上料通道",filamentID,"onTun",discoverList);
     discoverList = initText("舵机角度",filamentID,"svAng",discoverList);
-    discoverList = initText("主要步骤",filamentID,"step",discoverList);
-    discoverList = initText("次要步骤",filamentID,"subStep",discoverList);
     discoverList = initText("WIFI名",filamentID,"wifiName",discoverList);
     discoverList = initText("WIFI密码",filamentID,"wifiKey",discoverList);
-    discoverList = initText("拓竹IP地址",filamentID,"bambuIPAD",discoverList);
-    discoverList = initText("拓竹序列号",filamentID,"bambuSID",discoverList);
-    discoverList = initText("拓竹访问码",filamentID,"bambuKey",discoverList);
     discoverList = initText("LED亮度",filamentID,"LedBri",discoverList);
     discoverList = initText("执行指令",filamentID,"command",discoverList);
-    discoverList = initText("回抽延时",filamentID,"backTime",discoverList);
-    discoverList = initText("耗材温度",filamentID,"filamentTemp",discoverList);
-    discoverList = initText("耗材类型",filamentID,"filamentType",discoverList);
-    String em_options[] = {"前进", "后退", "停止"};
-    discoverList = initSelect("电机状态",filamentID,"mcState",em_options,discoverList);
     String se_options[] = {"推","拉","自定义角度"};
     discoverList = initSelect("舵机状态",filamentID,"svState",se_options,discoverList);
-    discoverList = initSensor("状态",filamentID,"state",discoverList);
-    discoverList = initSensor("本机通道",filamentID,"nowTun",discoverList);
-    discoverList = initSensor("下一通道",filamentID,"nextTun",discoverList);
-    discoverList = initLight("耗材指示灯",filamentID,"filaLig",discoverList);
+    discoverList = initLight("LED指示灯",filamentID,"filaLig",discoverList);
 
     File file = LittleFS.open("/ha.json", "w");
     serializeJson(haData, file);
@@ -1150,26 +1042,12 @@ void setup() {
 }
 
 void loop() {
-    if (!bambuClient.connected()) {
-        connectBambuMQTT();
-    }
-    bambuClient.loop();
-    
     if (!haClient.connected()) {
         connectHaMQTT();
     }
     haClient.loop();
 
     unsigned long nowTime =  millis();
-    if (nowTime-bambuLastTime > bambuRenewTime and nowTime-bambuCheckTime > bambuRenewTime*0.8){
-        bambuTimerCallback();
-        bambuCheckTime = millis();
-        leds.setPixelColor(0,leds.Color(10,255,10));
-        leds.show();
-        delay(10);
-        leds.setPixelColor(0,leds.Color(0,0,0));
-        leds.show();
-    }
     if (nowTime-haLastTime > haRenewTime and nowTime-haCheckTime > haRenewTime*0.8){
         haTimerCallback();
         haCheckTime = millis();
@@ -1182,12 +1060,11 @@ void loop() {
 
     if (not mc.getStopState()){
         if (digitalRead(bufferPin1) == 1 or digitalRead(bufferPin2) == 1){
-        mc.stop();}
+            mc.stop();}
         delay(100);
     }
 
     if (Serial.available()>0 or commandStr != ""){
-
         String content;
         if (Serial.available()>0){
             content = Serial.readString();
@@ -1225,14 +1102,14 @@ void loop() {
             sv.pull();
             Serial.println("pull COMPLETE");
         }else if (content.indexOf("sv") != -1)
-        {   
+        {
             String numberString = "";
             for (unsigned int i = 0; i < content.length(); i++) {
-            if (isdigit(content[i])) {
-                numberString += content[i];
+                if (isdigit(content[i])) {
+                    numberString += content[i];
+                }
             }
-            }
-            int number = numberString.toInt(); 
+            int number = numberString.toInt();
             sv.writeAngle(number);
             Serial.println("["+numberString+"]COMPLETE");
         }else if (content == "forward" or content == "fw")
@@ -1249,18 +1126,18 @@ void loop() {
         }else if (content.indexOf("renewTime") != -1 or content.indexOf("rt") != -1)        {
             String numberString = "";
             for (unsigned int i = 0; i < content.length(); i++) {
-            if (isdigit(content[i])) {
-                numberString += content[i];
-            }}
+                if (isdigit(content[i])) {
+                    numberString += content[i];
+                }}
             unsigned int number = numberString.toInt();
             bambuRenewTime = number;
             Serial.println("["+numberString+"]COMPLETE");
         }else if (content.indexOf("ledbright") != -1 or content.indexOf("lb") != -1)        {
             String numberString = "";
             for (unsigned int i = 0; i < content.length(); i++) {
-            if (isdigit(content[i])) {
-                numberString += content[i];
-            }}
+                if (isdigit(content[i])) {
+                    numberString += content[i];
+                }}
             unsigned int number = numberString.toInt();
             ledBrightness = number;
             JsonDocument Cdata = getCData();
