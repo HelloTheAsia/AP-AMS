@@ -414,8 +414,14 @@ JsonArray initText(String name,String id,String detail,JsonArray array){
     // 序列化JSON文档到字符串缓冲区
     serializeJson(doc, buffer);
 
+    String json = ("{\"name\":\"" +name +"\",\"command_topic\":\"AMS/" +filamentID +"\",\"state_topic\":\"AMS/" +
+                   id +"/" +detail +"\",\"command_template\":\"{\\\"command\\\":\\\"" +detail +
+                   "\\\",\\\"value\\\":\\\"{{  value  }}\\\"}\",\"unique_id\": \"ams"+"text"+id+name+"\", \"device\":{\"identifiers\":\"APAMS"
+                   +id+"\",\"name\":\"AP-AMS-"+id+"通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\""+sw_version+"\"}}");
+
     array.add(topic);
-    haClient.publish(topic.c_str(),buffer);
+//    haClient.publish(topic.c_str(),buffer);
+    haClient.publish(topic.c_str(),json.c_str());
     return array;
 }
 
@@ -434,37 +440,50 @@ JsonArray initSensor(String name,String id,String detail,JsonArray array){
     char buffer[1024];
     // 序列化JSON文档到字符串缓冲区
     serializeJson(doc, buffer);
+    String json = ("{\"name\":\""+name+"\",\"state_topic\":\"AMS/"+id+"/"+detail+"\",\"unique_id\": \"ams"
+                   +"sensor"+id+name+"\", \"device\":{\"identifiers\":\"APAMS"+id+"\",\"name\":\"AP-AMS-"+id
+                   +"通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\""+sw_version+"\"}}");
+
     array.add(topic);
-    haClient.publish(topic.c_str(),buffer);
+//    haClient.publish(topic.c_str(),buffer);
+    haClient.publish(topic.c_str(),json.c_str());
     return array;
 }
 
-JsonArray initSelect(String name,String id,String detail,String options[],JsonArray array){
+JsonArray initSelect(String name,String id,String detail,String options,JsonArray array){
     String topic = "homeassistant/select/ams"+id+detail+"/config";
-    JsonDocument doc;
-    // 填充JSON文档
-    doc["name"] = name;
-    doc["command_topic"] = "AMS/" + filamentID;
-    doc["state_topic"] = "AMS/" + id + "/" + detail;
-    JsonObject command_template = doc["command_template"].to<JsonObject>();
-    command_template["command"] = detail;
-    command_template["value"] = "{{ value }}";
-    JsonArray arr = doc["options"].to<JsonArray>();
-    for (int i = 0; i < options->length(); i++) {
-        arr[i] = options[i];
-    }
-    doc["unique_id"] = "amsselect" + id + name;
-    JsonObject device = doc["device"].to<JsonObject>();
-    device["identifiers"] = "APAMS" + id;
-    device["name"] = "AP-AMS-" + id + "通道";
-    device["manufacturer"] = "AP-AMS";
-    device["hw_version"] = sw_version;
-    // 创建一个字符串缓冲区
-    char buffer[1024];
-    // 序列化JSON文档到字符串缓冲区
-    serializeJson(doc, buffer);
+//    JsonDocument doc;
+//    // 填充JSON文档
+//    doc["name"] = name;
+//    doc["command_topic"] = "AMS/" + filamentID;
+//    doc["state_topic"] = "AMS/" + id + "/" + detail;
+//    JsonObject command_template = doc["command_template"].to<JsonObject>();
+//    command_template["command"] = detail;
+//    command_template["value"] = "{{ value }}";
+//    JsonArray arr = doc["options"].to<JsonArray>();
+//    for (int i = 0; i < options->length(); i++) {
+//        arr[i] = options[i];
+//    }
+//    doc["unique_id"] = "amsselect" + id + name;
+//    JsonObject device = doc["device"].to<JsonObject>();
+//    device["identifiers"] = "APAMS" + id;
+//    device["name"] = "AP-AMS-" + id + "通道";
+//    device["manufacturer"] = "AP-AMS";
+//    device["hw_version"] = sw_version;
+//    // 创建一个字符串缓冲区
+//    char buffer[1024];
+//    // 序列化JSON文档到字符串缓冲区
+//    serializeJson(doc, buffer);
+
+    String json = ("{\"name\":\"" +name +"\",\"command_topic\":\"AMS/" +filamentID +
+                   "\",\"state_topic\":\"AMS/" +id +"/" +detail +"\",\"command_template\":\"{\\\"command\\\":\\\"" +
+                   detail +"\\\",\\\"value\\\":\\\"{{  value  }}\\\"}\",\"options\":["+options+"],\"unique_id\": \"ams"+"select"
+                   +id+name+"\", \"device\":{\"identifiers\":\"APAMS"+id+"\",\"name\":\"AP-AMS-"+id
+                   +"通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\""+sw_version+"\"}}");
+
     array.add(topic);
-    haClient.publish(topic.c_str(),buffer);
+//    haClient.publish(topic.c_str(),buffer);
+    haClient.publish(topic.c_str(),json.c_str());
     return array;
 }
 
@@ -513,7 +532,7 @@ JsonArray initLight(String name,String id,String detail,JsonArray array){
                   + "\"payload_off\":\"{\\\"command\\\":\\\"" + detail + "swi\\\",\\\"value\\\":\\\"OFF\\\"}\""
                   + ",\"device\":{\"identifiers\":\"APAMS" + id + "\",\"name\":\"AP-AMS-" + id + "通道\",\"manufacturer\":\"AP-AMS\",\"hw_version\":\"" + sw_version + "\"}}";
     array.add(topic);
-    haClient.publish(topic.c_str(),buffer);
+    haClient.publish(topic.c_str(),json.c_str());
     return array;
 }
 
@@ -676,7 +695,7 @@ void setup() {
     discoverList = initText("LED亮度",filamentID,"LedBri",discoverList);
     discoverList = initText("执行指令",filamentID,"command",discoverList);
     String se_options[] = {"推","拉","自定义角度"};
-    discoverList = initSelect("舵机状态",filamentID,"svState",se_options,discoverList);
+    discoverList =initSelect("舵机状态",filamentID,"svState","\"推\",\"拉\",\"自定义角度\"",discoverList);
     discoverList = initLight("LED指示灯",filamentID,"filaLig",discoverList);
 
     File file = LittleFS.open("/ha.json", "w");
